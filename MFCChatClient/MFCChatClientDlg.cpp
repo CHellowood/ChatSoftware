@@ -52,19 +52,28 @@ END_MESSAGE_MAP()
 
 CMFCChatClientDlg::CMFCChatClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFCCHATCLIENT_DIALOG, pParent)
+	, m_client(NULL), m_time(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+
+CMFCChatClientDlg::~CMFCChatClientDlg()
+{
+	if (m_client) delete m_client;
 }
 
 void CMFCChatClientDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_MSGRECORD_LIST, m_msgRecord);
 }
 
 BEGIN_MESSAGE_MAP(CMFCChatClientDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_CONNECT_BTN, &CMFCChatClientDlg::OnBnClickedConnectBtn)
+	ON_BN_CLICKED(IDC_SENDMSG_BTN, &CMFCChatClientDlg::OnBnClickedSendmsgBtn)
 END_MESSAGE_MAP()
 
 
@@ -100,6 +109,9 @@ BOOL CMFCChatClientDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
+
+	// 初始化网络
+	AfxSocketInit();
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -153,3 +165,109 @@ HCURSOR CMFCChatClientDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+
+// 点击连接按钮
+void CMFCChatClientDlg::OnBnClickedConnectBtn()
+{
+	// TODO: 在此添加控件通知处理程序代码
+
+	CString strPort, strIP;
+
+	// 获取端口和IP
+	GetDlgItem(IDC_PORT_EDIT)->GetWindowText(strPort);
+	GetDlgItem(IDC_IPADDRESS)->GetWindowText(strIP);
+
+	// CString类型转char*类型
+	USES_CONVERSION;
+	LPCSTR csPort = (LPCSTR)T2A(strPort);
+	LPCSTR csIP = (LPCSTR)T2A(strIP);
+
+	// 在DebugView上显示
+	TRACE("###MFCChatClientDlg::OnBnClickedConnectBtn");
+	TRACE("###port: %s ip: %s", csPort, csIP);
+
+	// 套接字指针为空时创建套接字
+	if (!m_client) {
+	
+		m_client = new CMySocket;
+		
+		// 申请内存失败
+		if (!m_client) {
+			TRACE("###m_client new CMySocket failed!");
+			return;
+		}
+
+		// 创建套接字
+		BOOL ret = m_client->Create();
+
+		// 套接字创建失败
+		if (!ret) {
+			TRACE("###m_client create error %d", GetLastError());
+			delete m_client;
+			return;
+		}
+
+		// 端口, 把字符串转成整形
+		int iPort = _ttoi(strPort);
+
+		// 连接服务端(服务器)
+		ret = m_client->Connect(strIP, iPort);
+
+		// 连接服务端(服务器)失败
+		if (ret == SOCKET_ERROR) {
+			TRACE("###m_client connect error %d", GetLastError());
+			delete m_client;
+			return;
+		}
+	}
+
+	
+}
+
+
+// 点击发送按钮
+void CMFCChatClientDlg::OnBnClickedSendmsgBtn()
+{
+	TRACE("###CMFCChatClientDlg::OnBnClickedSendmsgBtn");
+
+	// 获取消息输入框的消息
+	CString strMsg;
+	GetDlgItem(IDC_MSG_EDIT)->GetWindowTextW(strMsg);
+
+	// 消息为空
+	if (strMsg.IsEmpty()) return;
+
+	USES_CONVERSION;
+	char* csSendBuf = (char*)T2A(strMsg);
+
+	// 发送消息
+	int ret = m_client->Send(csSendBuf, MSGBUF_LEN);
+	
+	// 发送出错
+	if (ret == SOCKET_ERROR) {
+		TRACE("m_client send error: %d", GetLastError());
+		MessageBox(L"发送失败!");
+	}
+	else {
+		// 客户端名称
+		CString strCliName = L"client";
+		
+		// 获取当前时间
+		m_time = CTime::GetCurrentTime();
+		
+		// 把当前时间转成字符串
+		CString strTime = m_time.Format("%X ");
+
+		// 字符串格式: 时间 客户端名称: 消息
+		strMsg = strTime + strCliName + L": " + strMsg;
+
+		// 把消息添加到消息记录里
+		m_msgRecord.AddString(strMsg);
+
+		// 更新数据
+		UpdateData();
+	}
+
+	// 把消息输入框的清空
+	GetDlgItem(IDC_MSG_EDIT)->SetWindowText(L"");
+}

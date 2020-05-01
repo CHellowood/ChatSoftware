@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "CMySocket.h"
 
 // CMFCChatClientDlg 对话框
 class CMFCChatClientDlg : public CDialogEx
@@ -11,6 +12,7 @@ class CMFCChatClientDlg : public CDialogEx
 // 构造
 public:
 	CMFCChatClientDlg(CWnd* pParent = nullptr);	// 标准构造函数
+	virtual ~CMFCChatClientDlg();
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -31,4 +33,14 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedConnectBtn();
+	
+	// 客户端套接字
+	CMySocket* m_client;
+	// 消息记录
+	CListBox m_msgRecord;
+	// 当前时间
+	CTime m_time;
+	afx_msg void OnBnClickedSendmsgBtn();
 };
