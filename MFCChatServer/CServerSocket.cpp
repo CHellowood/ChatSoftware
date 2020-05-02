@@ -18,25 +18,21 @@ void CServerSocket::OnAccept(int nErrorCode)
 
 	CMFCChatServerDlg* dlg = (CMFCChatServerDlg*)AfxGetApp()->GetMainWnd();
 	
-	// 获取当前时间
-	dlg->m_time = CTime::GetCurrentTime();
-
-	// 把当前时间转成字符串
-	CString str = dlg->m_time.Format("%X ");
+	CString strShow;
 
 	dlg->m_chat = new CChatSocket;
 
 	// 接受连接
 	if (!Accept(*(dlg->m_chat))) {
 		TRACE("###Accept error: %d", GetLastError());
-		str += L"客户端连接失败!";
+		strShow = dlg->CombStr(L"", L"客户端连接失败!");
 	}
 	else {
-		str += L"客户端连接成功!";
+		strShow = dlg->CombStr(L"", L"客户端连接成功!");
 	}
 
 	// 把字符串添加到消息记录里
-	dlg->m_msgRecord.AddString(str);
+	dlg->m_msgRecord.AddString(strShow);
 
 	CAsyncSocket::OnAccept(nErrorCode);
 }

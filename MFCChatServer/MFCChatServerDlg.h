@@ -46,15 +46,15 @@ public:
 	// 消息记录
 	CListBox m_msgRecord;
 
-	// 实时时间
-	CTime m_time;
-	
-	// 自动回复
-	CButton m_autoReply;
-
 	afx_msg void OnBnClickedAutoreplyRadio();
 
 	// 自动回复函数
 	void AutoReply();
 	
+	afx_msg void OnBnClickedSendBtn();
+
+	// 消息字符串拼接, 第三个参数 isAddTime 表示是否要添加时间
+	//格式: 时间(函数内部获取) + 空格 + 昵称 + ": " + 消息
+	// 返回拼接后的字符串
+	CString CombStr(const CString& strNickname, const CString& strMsg, bool isAddTime = true);
 };

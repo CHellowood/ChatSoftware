@@ -40,7 +40,11 @@ public:
 	CMySocket* m_client;
 	// 消息记录
 	CListBox m_msgRecord;
-	// 当前时间
-	CTime m_time;
+
 	afx_msg void OnBnClickedSendmsgBtn();
+
+	// 消息字符串拼接, 第三个参数 isAddTime 表示是否要添加时间
+	//格式: 时间(函数内部获取) + 空格 + 昵称 + ": " + 消息
+	// 返回拼接后的字符串
+	CString CombStr(const CString& strNickname, const CString& strMsg, bool isAddTime = true);
 };

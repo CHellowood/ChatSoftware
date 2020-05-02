@@ -52,7 +52,7 @@ END_MESSAGE_MAP()
 
 CMFCChatClientDlg::CMFCChatClientDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFCCHATCLIENT_DIALOG, pParent)
-	, m_client(NULL), m_time(0)
+	, m_client(NULL)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -177,6 +177,11 @@ void CMFCChatClientDlg::OnBnClickedConnectBtn()
 	GetDlgItem(IDC_PORT_EDIT)->GetWindowText(strPort);
 	GetDlgItem(IDC_IPADDRESS)->GetWindowText(strIP);
 
+	if (strPort.IsEmpty() || strIP.IsEmpty()) {
+		MessageBox(L"端口或IP为空!");
+		return;
+	}
+
 	// CString类型转char*类型
 	USES_CONVERSION;
 	LPCSTR csPort = (LPCSTR)T2A(strPort);
@@ -220,8 +225,6 @@ void CMFCChatClientDlg::OnBnClickedConnectBtn()
 			return;
 		}
 	}
-
-	
 }
 
 
@@ -237,8 +240,13 @@ void CMFCChatClientDlg::OnBnClickedSendmsgBtn()
 	// 消息为空
 	if (strMsg.IsEmpty()) return;
 
+	CString strNickname = L"client";
+
+	// 拼接要发送的消息
+	CString strSendBuf = CombStr(strNickname, strMsg, false);
+
 	USES_CONVERSION;
-	char* csSendBuf = (char*)T2A(strMsg);
+	char* csSendBuf = (char*)T2A(strSendBuf);
 
 	// 发送消息
 	int ret = m_client->Send(csSendBuf, MSGBUF_LEN);
@@ -246,28 +254,39 @@ void CMFCChatClientDlg::OnBnClickedSendmsgBtn()
 	// 发送出错
 	if (ret == SOCKET_ERROR) {
 		TRACE("m_client send error: %d", GetLastError());
-		MessageBox(L"发送失败!");
+		MessageBox(L"发送出错!");
+		return;
 	}
-	else {
-		// 客户端名称
-		CString strCliName = L"client";
-		
-		// 获取当前时间
-		m_time = CTime::GetCurrentTime();
-		
-		// 把当前时间转成字符串
-		CString strTime = m_time.Format("%X ");
 
-		// 字符串格式: 时间 客户端名称: 消息
-		strMsg = strTime + strCliName + L": " + strMsg;
+	CString strShow = CombStr(strNickname, strMsg);
 
-		// 把消息添加到消息记录里
-		m_msgRecord.AddString(strMsg);
+	// 把消息添加到消息记录里
+	m_msgRecord.AddString(strShow);
 
-		// 更新数据
-		UpdateData();
-	}
+	// 更新数据
+	UpdateData();
 
 	// 把消息输入框的清空
 	GetDlgItem(IDC_MSG_EDIT)->SetWindowText(L"");
+}
+
+// 消息字符串拼接
+CString CMFCChatClientDlg::CombStr(const CString& strNickname,
+	const CString& strMsg, bool isAddTime)
+{
+	CString strTime = L"";
+
+	if (isAddTime) {
+		// 获取当前时间并把当前时间转成字符串
+		// 时间字符串带了一个空格                            
+		strTime = CTime::GetCurrentTime().Format("%X ");
+	}
+
+	// 如果昵称为空, 则等于 (L"") , 否则等于 (昵称 + ": ")
+	CString strNick = strNickname.IsEmpty() ? L"" : strNickname + L": ";
+
+	// 拼接字符串, 格式: 时间 + 空格 + 昵称 + ": " + 消息
+	CString strRet = strTime + strNick + strMsg;
+
+	return strRet;
 }

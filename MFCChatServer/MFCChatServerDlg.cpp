@@ -52,7 +52,7 @@ END_MESSAGE_MAP()
 
 CMFCChatServerDlg::CMFCChatServerDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFCCHATSERVER_DIALOG, pParent)
-	, m_server(NULL), m_chat(NULL), m_time(0)
+	, m_server(NULL), m_chat(NULL)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -66,7 +66,6 @@ void CMFCChatServerDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_MSGRECORD_LIST, m_msgRecord);
-	DDX_Control(pDX, IDC_AUTOREPLY_RADIO, m_autoReply);
 }
 
 BEGIN_MESSAGE_MAP(CMFCChatServerDlg, CDialogEx)
@@ -75,6 +74,7 @@ BEGIN_MESSAGE_MAP(CMFCChatServerDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_START_BTN, &CMFCChatServerDlg::OnBnClickedStartBtn)
 	ON_BN_CLICKED(IDC_AUTOREPLY_RADIO, &CMFCChatServerDlg::OnBnClickedAutoreplyRadio)
+	ON_BN_CLICKED(IDC_SEND_BTN, &CMFCChatServerDlg::OnBnClickedSendBtn)
 END_MESSAGE_MAP()
 
 
@@ -177,6 +177,11 @@ void CMFCChatServerDlg::OnBnClickedStartBtn()
 	GetDlgItem(IDC_PORT_EDIT)->GetWindowText(strPort);
 	//GetDlgItem(IDC_IPADDRESS)->GetWindowText(strIP);
 
+	if (strPort.IsEmpty()) {
+		MessageBox(L"端口为空!");
+		return;
+	}
+
 	USES_CONVERSION;
 	LPCSTR csPort = (LPCSTR)T2A(strPort);
 	//LPCSTR csIP = (LPCSTR)T2A(strIP);
@@ -218,23 +223,21 @@ void CMFCChatServerDlg::OnBnClickedStartBtn()
 			return;
 		}
 
-		// 获取当前时间
-		m_time = CTime::GetCurrentTime();
-
-		// 把当前时间转成字符串
-		CString str = m_time.Format("%X ");
-		str += L"服务器启动成功!";
+		
+		CString strShow = CombStr(L"", L"服务器启动成功!");
 
 		// 把字符串添加到消息记录里
-		m_msgRecord.AddString(str);
+		m_msgRecord.AddString(strShow);
 	}
 }
 
 // 按自动回复按钮
 void CMFCChatServerDlg::OnBnClickedAutoreplyRadio()
 {
+	// 获取自动回复按钮
+	CButton* autoReply = (CButton*)GetDlgItem(IDC_AUTOREPLY_RADIO);
 	// 设置为相反的状态
-	m_autoReply.SetCheck(!(m_autoReply.GetCheck() % 2));
+	autoReply->SetCheck(!(autoReply->GetCheck()));
 }
 
 // 实现自动回复
@@ -243,7 +246,7 @@ void CMFCChatServerDlg::AutoReply()
 	TRACE("###CMFCChatServerDlg::AutoReply");
 
 	// 自动回复按钮被选中
-	if (m_autoReply.GetCheck() == BST_CHECKED) {
+	if (((CButton*)GetDlgItem(IDC_AUTOREPLY_RADIO))->GetCheck() == BST_CHECKED) {
 		// 获取消息框内容
 		CString strMsg;
 		GetDlgItem(IDC_MSG_EDIT)->GetWindowText(strMsg);
@@ -251,36 +254,96 @@ void CMFCChatServerDlg::AutoReply()
 		// 消息为空
 		if (strMsg.IsEmpty()) return;
 
+		CString strNickname = L"server";
+		strNickname += L"[自动回复]";
+
+		// 拼接要发送消息
+		CString strSendBuf = CombStr(strNickname, strMsg, false);
+
 		// CString转成char*
 		USES_CONVERSION;
-		char* csSend = (char*)T2A(strMsg);
+		char* csSendBuf = (char*)T2A(strSendBuf);
 	
 		// 发送消息
-		int ret = m_chat->Send(csSend, MSGBUF_LEN);
+		int ret = m_chat->Send(csSendBuf, MSGBUF_LEN);
 		
 		// 发送出错
 		if (ret == SOCKET_ERROR) {
 			TRACE("###Send error: %d", GetLastError());
+			MessageBox(L"发送出错!");
+			return;
 		}
 
 		// -----在消息记录里显示发送的消息-----
 
-		// 服务端名称
-		CString strSerName = L"server";
-
-		// 获取当前时间
-		m_time = CTime::GetCurrentTime();
-		
-		// 把当前时间转成字符串
-		CString strTime = m_time.Format("%X ");
-
-		// 字符串格式: 时间 名称: 消息
-		strMsg = strTime + strSerName + L": " + strMsg;
+		CString strShow = CombStr(strNickname, strMsg);
 
 		// 添加到消息记录
-		m_msgRecord.AddString(strMsg);
+		m_msgRecord.AddString(strShow);
 
-		// 更新数据
+		// 更新控件数据
 		UpdateData();
 	}
+}
+
+// 按发送按钮
+void CMFCChatServerDlg::OnBnClickedSendBtn()
+{
+	TRACE("###CMFCChatServerDlg::OnBnClickedSendBtn");
+
+	CString strNickname = L"server"; // 昵称
+	CString strMsg;                  // 消息
+
+	// 获取指定控件的文本
+	GetDlgItemText(IDC_MSG_EDIT, strMsg);
+
+	// 消息为空
+	if (strMsg.IsEmpty()) return;
+
+	// 拼接要发送的消息
+	CString strSendBuf = CombStr(strNickname, strMsg, false);
+
+	// 把CString转成char*
+	USES_CONVERSION;
+	char* csSendBuf = (char*)T2A(strSendBuf);
+
+	// 发送消息
+	int ret = m_chat->Send(csSendBuf, MSGBUF_LEN, 0);
+
+	if (ret == SOCKET_ERROR) {
+		TRACE("###Send error: %d", GetLastError());
+		MessageBox(L"发送出错!");
+		return;
+	}
+
+	// 拼接在消息记录里显示的字符串
+	CString strShow = CombStr(strNickname, strMsg);
+
+	m_msgRecord.AddString(strShow);
+
+	// 把输入框的内容清空
+	SetDlgItemText(IDC_MSG_EDIT, L"");
+
+	UpdateData(FALSE);
+}
+
+// 消息字符串拼接
+CString CMFCChatServerDlg::CombStr(const CString& strNickname,
+	const CString& strMsg, bool isAddTime)
+{
+	CString strTime = L"";
+
+	if (isAddTime) {
+		// 获取当前时间并把当前时间转成字符串
+		// 时间字符串带了一个空格                            
+		strTime = CTime::GetCurrentTime().Format("%X ");
+	}
+
+	// 如果昵称为空, 则等于 (L"") , 否则等于 (昵称 + ": ")
+	CString strNick = strNickname.IsEmpty() ? L"" : strNickname + L": ";
+
+	// 拼接字符串, 格式: 时间 + 空格 + 昵称 + ": " + 消息
+	CString strRet = strTime + strNick + strMsg;
+
+	return strRet;
 }
