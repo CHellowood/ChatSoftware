@@ -6,6 +6,11 @@
 
 #include "CMySocket.h"
 
+// 昵称长度
+#define NICKNAME_LEN 10
+// 默认昵称
+#define DEFAULT_NICKNAME "client"
+
 // CMFCChatClientDlg 对话框
 class CMFCChatClientDlg : public CDialogEx
 {
@@ -47,4 +52,8 @@ public:
 	//格式: 时间(函数内部获取) + 空格 + 昵称 + ": " + 消息
 	// 返回拼接后的字符串
 	CString CombStr(const CString& strNickname, const CString& strMsg, bool isAddTime = true);
+	afx_msg void OnBnClickedAutoreplyRadio();
+	// 实现自动回复
+	void CMFCChatClientDlg::AutoReply();
+	afx_msg void OnBnClickedSavenicknameBtn();
 };

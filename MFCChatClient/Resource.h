@@ -17,6 +17,8 @@
 #define IDC_MSGRECORD_LIST              1007
 #define IDC_CLASERECORD_BTN             1008
 #define IDC_FONTCOLOR_COMBO             1009
+#define IDC_NICKNAME_EDIT               1010
+#define IDC_SAVENICKNAME_BTN            1011
 
 // Next default values for new objects
 // 
@@ -24,7 +26,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1010
+#define _APS_NEXT_CONTROL_VALUE         1012
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

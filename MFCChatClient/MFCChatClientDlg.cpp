@@ -74,6 +74,8 @@ BEGIN_MESSAGE_MAP(CMFCChatClientDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_CONNECT_BTN, &CMFCChatClientDlg::OnBnClickedConnectBtn)
 	ON_BN_CLICKED(IDC_SENDMSG_BTN, &CMFCChatClientDlg::OnBnClickedSendmsgBtn)
+	ON_BN_CLICKED(IDC_AUTOREPLY_RADIO, &CMFCChatClientDlg::OnBnClickedAutoreplyRadio)
+	ON_BN_CLICKED(IDC_SAVENICKNAME_BTN, &CMFCChatClientDlg::OnBnClickedSavenicknameBtn)
 END_MESSAGE_MAP()
 
 
@@ -110,8 +112,41 @@ BOOL CMFCChatClientDlg::OnInitDialog()
 
 	// TODO: 在此添加额外的初始化代码
 
+	TRACE("###CMFCChatClientDlg::OnInitDialog");
+
 	// 初始化网络
 	AfxSocketInit();
+
+	// 初始化配置,    昵称长度 + 1(字符串结束符)
+	WCHAR wcsNickname[NICKNAME_LEN+1] = _T(DEFAULT_NICKNAME);
+	
+	// 设置默认昵称
+	SetDlgItemText(IDC_NICKNAME_EDIT, wcsNickname);
+
+	// 获取当前目录
+	WCHAR wcsPath[MAX_PATH];
+	if (!GetCurrentDirectoryW(MAX_PATH, wcsPath)) {
+		TRACE("###GetCurrentDirectoryW error: ", GetLastError());
+		return -1;
+	}
+
+	// 配置文件路径
+	CString strFilePath;
+	strFilePath.Format(L"%s//client.ini", wcsPath);
+
+	// 从配置文件里读取昵称
+	if (!GetPrivateProfileStringW(L"CLIENT", L"NICKNAME", L"client",
+		wcsNickname, NICKNAME_LEN+1, strFilePath)) {
+
+		TRACE("###GetPrivateProfileStringW error: ", GetLastError());
+		return -1;
+	}
+
+	// 设置昵称
+	SetDlgItemText(IDC_NICKNAME_EDIT, wcsNickname);
+
+	// 更新控件数据
+	UpdateData(FALSE);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -240,7 +275,15 @@ void CMFCChatClientDlg::OnBnClickedSendmsgBtn()
 	// 消息为空
 	if (strMsg.IsEmpty()) return;
 
-	CString strNickname = L"client";
+	// 获取昵称
+	CString strNickname;
+	GetDlgItemText(IDC_NICKNAME_EDIT, strNickname);
+
+	// 昵称为空
+	if (strNickname.IsEmpty()) {
+		// 设为默认昵称
+		strNickname = _T(DEFAULT_NICKNAME);
+	}
 
 	// 拼接要发送的消息
 	CString strSendBuf = CombStr(strNickname, strMsg, false);
@@ -289,4 +332,113 @@ CString CMFCChatClientDlg::CombStr(const CString& strNickname,
 	CString strRet = strTime + strNick + strMsg;
 
 	return strRet;
+}
+
+// 按自动回复按钮
+void CMFCChatClientDlg::OnBnClickedAutoreplyRadio()
+{
+	// 获取自动回复按钮
+	CButton* autoReply = (CButton*)GetDlgItem(IDC_AUTOREPLY_RADIO);
+	// 设置为相反的状态
+	autoReply->SetCheck(!(autoReply->GetCheck()));
+}
+
+// 实现自动回复
+void CMFCChatClientDlg::AutoReply()
+{
+	TRACE("###CMFCChatClientDlg::AutoReply");
+
+	// 自动回复按钮被选中
+	if (((CButton*)GetDlgItem(IDC_AUTOREPLY_RADIO))->GetCheck() == BST_CHECKED) {
+		// 获取消息框内容
+		CString strMsg;
+		GetDlgItem(IDC_MSG_EDIT)->GetWindowText(strMsg);
+
+		// 消息为空
+		if (strMsg.IsEmpty()) return;
+
+		// 获取昵称
+		CString strNickname;
+		GetDlgItemText(IDC_NICKNAME_EDIT, strNickname);
+
+		// 昵称为空
+		if (strNickname.IsEmpty()) {
+			// 设为默认昵称
+			strNickname = _T(DEFAULT_NICKNAME);
+		}
+
+		strNickname += L"[自动回复]";
+
+		// 拼接要发送消息
+		CString strSendBuf = CombStr(strNickname, strMsg, false);
+
+		// CString转成char*
+		USES_CONVERSION;
+		char* csSendBuf = (char*)T2A(strSendBuf);
+
+		// 发送消息
+		int ret = m_client->Send(csSendBuf, MSGBUF_LEN);
+
+		// 发送出错
+		if (ret == SOCKET_ERROR) {
+			TRACE("###Send error: %d", GetLastError());
+			MessageBox(L"发送出错!");
+			return;
+		}
+
+		// -----在消息记录里显示发送的消息-----
+
+		CString strShow = CombStr(strNickname, strMsg);
+
+		// 添加到消息记录
+		m_msgRecord.AddString(strShow);
+
+		// 更新控件数据
+		UpdateData();
+	}
+}
+
+// 保存昵称
+void CMFCChatClientDlg::OnBnClickedSavenicknameBtn()
+{
+	TRACE("###CMFCChatClientDlg::OnBnClickedSavenicknameBtn");
+
+	// 获取昵称
+	CString strNickname;
+	GetDlgItemText(IDC_NICKNAME_EDIT, strNickname);
+
+	if (strNickname.IsEmpty()) {
+		MessageBox(L"昵称为空!");
+		return;
+	}
+	// 昵称长度过长
+	else if (strNickname.GetLength() > NICKNAME_LEN) {
+		// 把昵称设为默认昵称
+		SetDlgItemText(IDC_NICKNAME_EDIT, _T(DEFAULT_NICKNAME));
+
+		CString str;
+		str.Format(L"昵称长度大于%d!", NICKNAME_LEN);
+		MessageBox(str);
+		return;
+	}
+
+	// 获取当前目录
+	WCHAR wcsPath[MAX_PATH];
+	if (!GetCurrentDirectoryW(MAX_PATH, wcsPath)) {
+		TRACE("###GetCurrentDirectoryW error: ", GetLastError());
+		MessageBox(L"昵称保存失败!");
+		return;
+	}
+
+	// 配置文件路径
+	CString strFilePath;
+	strFilePath.Format(L"%s//client.ini", wcsPath);
+
+	// 把昵称保存到配置文件里, 如果配置文件不存在, 则创建一个配置文件
+	if (!WritePrivateProfileStringW(L"CLIENT", L"NICKNAME", strNickname, strFilePath)) {
+		TRACE("###WritePrivateProfileStringW error: ", GetLastError());
+		MessageBox(L"昵称保存失败!");
+		return;
+	}
+
 }

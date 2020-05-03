@@ -36,30 +36,31 @@ void CMySocket::OnReceive(int nErrorCode)
 {
 	TRACE("###CMySocket::OnReceive");
 
-	if (!nErrorCode) {
 
-		// 获取主窗口
-		CMFCChatClientDlg* dlg = (CMFCChatClientDlg*)AfxGetApp()->GetMainWnd();
+	// 获取主窗口
+	CMFCChatClientDlg* dlg = (CMFCChatClientDlg*)AfxGetApp()->GetMainWnd();
 
-		// 接收数据(消息)
-		char csRecvBuf[MSGBUF_LEN];
-		int ret = Receive(csRecvBuf, MSGBUF_LEN);
+	// 接收数据(消息)
+	char csRecvBuf[MSGBUF_LEN];
+	int ret = Receive(csRecvBuf, MSGBUF_LEN);
 		
-		// 接收出错
-		if (ret == SOCKET_ERROR) {
-			TRACE("###Receive error: %d", GetLastError());
-			return;
-		}
-
-		// 把char数组转成CString
-		USES_CONVERSION;
-		CString strMsg = (CString)A2T(csRecvBuf);
-
-		CString strShow = dlg->CombStr(L"", strMsg);
-
-		// 添加到消息记录
-		dlg->m_msgRecord.AddString(strShow);
+	// 接收出错
+	if (ret == SOCKET_ERROR) {
+		TRACE("###Receive error: %d", GetLastError());
+		return;
 	}
+
+	// 把char数组转成CString
+	USES_CONVERSION;
+	CString strMsg = (CString)A2T(csRecvBuf);
+
+	CString strShow = dlg->CombStr(L"", strMsg);
+
+	// 添加到消息记录
+	dlg->m_msgRecord.AddString(strShow);
+
+	// 自动回复
+	dlg->AutoReply();
 
 	CAsyncSocket::OnReceive(nErrorCode);
 }
